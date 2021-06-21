@@ -14,6 +14,41 @@ provider "aws" {
   shared_credentials_file = "$HOME/.aws/credentials"
 }
 
+
+resource "aws_vpc" "devvpc" {
+  cidr_block       = "10.0.0.0/16"
+  instance_tenancy = "default"
+  enable_dns_hostnames = true
+  tags = {
+    Name = "Dev_VPC"
+  }
+}
+
+resource "aws_internet_gateway" "dev_igw" {
+  vpc_id = aws_vpc.devvpc.id
+  tags = {
+    Name = "Dev IGW"
+  }
+}
+
+resource "aws_route_table" "dev_rt" {
+  vpc_id = aws_vpc.devvpc.id
+
+  route {
+    cidr_block = "0.0.0.0/0"
+    gateway_id = aws_internet_gateway.dev_igw.id
+  }
+
+  tags = {
+    Name = "Dev-RT"
+  }
+}
+
+resource "aws_route_table_association" "a" {
+  subnet_id      = aws_subnet.devsubnet.id
+  route_table_id = aws_route_table.dev_rt.id
+}
+
 resource "aws_security_group" "allow_ssh" {
   name        = "allow_ssh"
   description = "Allow SSH inbound traffic"
@@ -57,15 +92,6 @@ resource "aws_security_group" "nfs" {
 
   tags = {
     Name = "NFS-sg"
-  }
-}
-
-resource "aws_vpc" "devvpc" {
-  cidr_block       = "10.0.0.0/16"
-  instance_tenancy = "default"
-
-  tags = {
-    Name = "Dev_VPC"
   }
 }
 
@@ -183,36 +209,38 @@ resource "aws_security_group" "testport" {
 }
 
 resource "aws_instance" "master_ec2" {
-  vpc_security_group_ids = [aws_vpc.devvpc.id]
+  subnet_id = aws_subnet.devsubnet.id
+  vpc_security_group_ids = [aws_security_group.allow_ssh.id, aws_security_group.nfs.id, aws_security_group.master_node_sg.id, aws_security_group.testport.id]
+  associate_public_ip_address = true
   ami = "ami-0bad4a5e987bdebde"
   instance_type = "t3.small"
   key_name = "autokey"
-  security_groups = ["allow_ssh","nfs","master_node_sg","testport"]
+  #security_groups = ["allow_ssh","nfs","master_node_sg","testport"]
   tags = {
     "Name" = "Master_Node"
   }
-  # provisioner "local-exec" {
-  #     command = "ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook ./kubernetes-ansible/centos/setup_master_node.yml"
-  #     }
 }
 
 resource "aws_instance" "worker_ec2" {
+  subnet_id = aws_subnet.devsubnet.id
+  vpc_security_group_ids = [aws_security_group.allow_ssh.id, aws_security_group.nfs.id, aws_security_group.worker_node_sg.id, aws_security_group.testport.id]
   ami = "ami-0bad4a5e987bdebde"
   instance_type = "t3.small"
   count = 2
   key_name = "autokey"
-  security_groups = ["allow_ssh","nfs","worker_node_sg","testport"]
+  #security_groups = ["allow_ssh","nfs","worker_node_sg","testport"]
   tags = {
     "Name" = "Worker_Node"
   }
 }
 
 resource "aws_instance" "nfs-server" {
+  subnet_id = aws_subnet.devsubnet.id  
+  vpc_security_group_ids = [aws_security_group.allow_ssh.id,aws_security_group.nfs.id]
   ami = "ami-0bad4a5e987bdebde"
   instance_type = "t2.micro"
   key_name = "autokey"
-  security_groups = ["nfs","allow_ssh"]
-  associate_public_ip_address = false  
+  #security_groups = ["nfs","allow_ssh"]
   tags = {
     "Name" = "NFS-server"
   }
@@ -228,18 +256,14 @@ output "master_public_ip" {
   value       = aws_instance.master_ec2.public_ip
 }
 
-output "woker1_public_ip" {
-  description = "Public IP address of Worker Node1"
-  value       = aws_instance.worker_ec2[0].public_ip
+output "woker1_private_ip" {
+  description = "Private IP address of Worker Node1"
+  value       = aws_instance.worker_ec2[0].private_ip
 }
 
-output "woker2_public_ip" {
-  description = "Public IP address of Worker Node2"
-  value       = aws_instance.worker_ec2[1].public_ip
-}
-output "nfs-server_public_ip" {
-  description = "Public IP address of Nfs Server"
-  value       = aws_instance.nfs-server.public_ip
+output "woker2_private_ip" {
+  description = "Private IP address of Worker Node2"
+  value       = aws_instance.worker_ec2[1].private_ip
 }
 
 output "nfs-server_private_ip" {
