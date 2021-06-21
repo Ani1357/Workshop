@@ -14,7 +14,7 @@ provider "aws" {
   shared_credentials_file = "$HOME/.aws/credentials"
 }
 
-
+#Creating Custom VPC
 resource "aws_vpc" "devvpc" {
   cidr_block       = "10.0.0.0/16"
   instance_tenancy = "default"
@@ -24,6 +24,7 @@ resource "aws_vpc" "devvpc" {
   }
 }
 
+#Creating Internet Gateway
 resource "aws_internet_gateway" "dev_igw" {
   vpc_id = aws_vpc.devvpc.id
   tags = {
@@ -31,22 +32,77 @@ resource "aws_internet_gateway" "dev_igw" {
   }
 }
 
-resource "aws_route_table" "dev_rt" {
-  vpc_id = aws_vpc.devvpc.id
+resource "aws_eip" "nat_eip" {
+  vpc      = true
+}
 
+#Creating Nat Gateway
+resource "aws_nat_gateway" "nat_gw" {
+  allocation_id = aws_eip.nat_eip.id
+  subnet_id = aws_subnet.devsubnet_public.id
+  tags = {
+    Name = "gw NAT"
+  }
+  depends_on = [aws_internet_gateway.dev_igw]
+}
+
+#Adding new Route Table for public routing
+resource "aws_route_table" "public_rt" {
+  vpc_id = aws_vpc.devvpc.id
   route {
     cidr_block = "0.0.0.0/0"
     gateway_id = aws_internet_gateway.dev_igw.id
   }
-
   tags = {
-    Name = "Dev-RT"
+    Name = "Public RT"
   }
 }
 
-resource "aws_route_table_association" "a" {
-  subnet_id      = aws_subnet.devsubnet.id
-  route_table_id = aws_route_table.dev_rt.id
+#Adding new Route Table for private routing
+resource "aws_route_table" "private_rt" {
+  vpc_id = aws_vpc.devvpc.id
+  route {
+    cidr_block = "0.0.0.0/0"
+    gateway_id = aws_nat_gateway.nat_gw.id
+  }
+  tags = {
+    Name = "Private RT"
+  }
+}
+
+#Public Subnet
+resource "aws_subnet" "devsubnet_public" {
+  vpc_id     = aws_vpc.devvpc.id
+  cidr_block = "10.0.1.0/24"
+  map_public_ip_on_launch = true
+  tags = {
+    Name = "Dev_Subnet Public"
+  }
+}
+#Private Subnet
+resource "aws_subnet" "devsubnet_private" {
+  vpc_id     = aws_vpc.devvpc.id
+  cidr_block = "10.0.2.0/24"
+  map_public_ip_on_launch = false
+  tags = {
+    Name = "Dev_Subnet Private"
+  }
+}
+
+resource "aws_route" "route_public" {
+  route_table_id = aws_route_table.public_rt.id
+  destination_cidr_block    = "0.0.0.0/0"
+  gateway_id = aws_internet_gateway.dev_igw.id
+  depends_on                = [aws_route_table.public_rt]
+}
+
+resource "aws_route_table_association" "sub_pub" {
+  subnet_id      = aws_subnet.devsubnet_public.id
+  route_table_id = aws_route_table.public_rt.id
+}
+resource "aws_route_table_association" "sub_priv" {
+  subnet_id      = aws_subnet.devsubnet_private.id
+  route_table_id = aws_route_table.private_rt.id
 }
 
 resource "aws_security_group" "allow_ssh" {
@@ -92,15 +148,6 @@ resource "aws_security_group" "nfs" {
 
   tags = {
     Name = "NFS-sg"
-  }
-}
-
-resource "aws_subnet" "devsubnet" {
-  vpc_id     = aws_vpc.devvpc.id
-  cidr_block = "10.0.1.0/24"
-  map_public_ip_on_launch = false
-  tags = {
-    Name = "Dev_Subnet"
   }
 }
 
@@ -209,9 +256,9 @@ resource "aws_security_group" "testport" {
 }
 
 resource "aws_instance" "master_ec2" {
-  subnet_id = aws_subnet.devsubnet.id
+  subnet_id = aws_subnet.devsubnet_public.id
   vpc_security_group_ids = [aws_security_group.allow_ssh.id, aws_security_group.nfs.id, aws_security_group.master_node_sg.id, aws_security_group.testport.id]
-  associate_public_ip_address = true
+  #associate_public_ip_address = true
   ami = "ami-0bad4a5e987bdebde"
   instance_type = "t3.small"
   key_name = "autokey"
@@ -222,7 +269,7 @@ resource "aws_instance" "master_ec2" {
 }
 
 resource "aws_instance" "worker_ec2" {
-  subnet_id = aws_subnet.devsubnet.id
+  subnet_id = aws_subnet.devsubnet_private.id
   vpc_security_group_ids = [aws_security_group.allow_ssh.id, aws_security_group.nfs.id, aws_security_group.worker_node_sg.id, aws_security_group.testport.id]
   ami = "ami-0bad4a5e987bdebde"
   instance_type = "t3.small"
@@ -235,7 +282,7 @@ resource "aws_instance" "worker_ec2" {
 }
 
 resource "aws_instance" "nfs-server" {
-  subnet_id = aws_subnet.devsubnet.id  
+  subnet_id = aws_subnet.devsubnet_private.id  
   vpc_security_group_ids = [aws_security_group.allow_ssh.id,aws_security_group.nfs.id]
   ami = "ami-0bad4a5e987bdebde"
   instance_type = "t2.micro"
@@ -270,4 +317,3 @@ output "nfs-server_private_ip" {
   description = "Private IP address of Worker Node2"
   value       = aws_instance.nfs-server.private_ip
 }
-
