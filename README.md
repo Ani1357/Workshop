@@ -10,3 +10,12 @@
 
 4- Build a CI/CD Pipeline in Jenkins via Jenkinsfile for deploying a “Hello Word” Java Application inside the Kubernetes Cluster
 
+# Prerequisites:
+
+1- Install Terraform
+
+2- Install Ansible
+
+3- Configure AWS credentials (The TF script uses $HOME/.aws/credentials to retrive credentials)
+
+4- Generate a ssh keypair (will use the public key inside the TF script)
