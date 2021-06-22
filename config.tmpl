@@ -6,6 +6,6 @@ Host *
     ServerAliveCountMax 30
 
 Host bastion
-    HostName ec2-35-156-209-210.eu-central-1.compute.amazonaws.com
+    HostName ${master_dns}
     User ec2-user
     IdentityFile ~/.ssh/id_rsa

@@ -324,3 +324,41 @@ output "nfs-server_private_ip" {
   description = "Private IP address of Worker Node2"
   value       = aws_instance.nfs-server.private_ip
 }
+
+
+resource "local_file" "ansible_inventory" {
+  content = templatefile("inventory.tmpl", {
+      nfs_server-ip = aws_instance.nfs-server.private_ip,
+      master-ip     = aws_instance.master_ec2.public_ip,
+      worker1-ip    = aws_instance.worker_ec2[0].private_ip,
+      worker2-ip    = aws_instance.worker_ec2[1].private_ip,
+  })
+  file_permission = 644
+  filename = format("%s/%s", abspath(path.root), "inventory.yaml")
+  
+}
+
+resource "local_file" "create_ssh_jump_config" {
+  content = templatefile("config.tmpl", {
+      master_dns = aws_instance.master_ec2.public_dns,
+  })
+  filename = format("%s/%s", abspath(path.root), "ansible-roles/k8/common/files/config")
+}
+
+resource "null_resource" "copy_ssh_config" {
+  depends_on = [aws_nat_gateway.nat_gw]
+  provisioner "local-exec" {
+    command = "cp ansible-roles/k8/common/files/config ~/.ssh/config"
+    #interpreter = ["bash", "-c"]
+    working_dir = path.module
+  }
+}
+
+resource "null_resource" "run_ansible" {
+  depends_on = [aws_nat_gateway.nat_gw]
+  provisioner "local-exec" {
+    command = "ansible-playbook -i inventory.yaml ansible-roles/k8/k8_init.yaml"
+    #interpreter = ["bash", "-c"]
+    working_dir = path.module
+  }
+}
