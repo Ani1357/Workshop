@@ -1,0 +1,4 @@
+---
+# tasks file for worker
+- name: running connect command
+  command: "{{ token_cmd }}"

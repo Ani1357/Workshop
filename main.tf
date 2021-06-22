@@ -79,6 +79,7 @@ resource "aws_subnet" "devsubnet_public" {
     Name = "Dev_Subnet Public"
   }
 }
+
 #Private Subnet
 resource "aws_subnet" "devsubnet_private" {
   vpc_id     = aws_vpc.devvpc.id
@@ -115,14 +116,12 @@ resource "aws_security_group" "allow_ssh" {
     protocol         = "tcp"
     cidr_blocks      = ["0.0.0.0/0"]
   }
-
   egress {
     from_port        = 0
     to_port          = 0
     protocol         = "-1"
     cidr_blocks      = ["0.0.0.0/0"]
   }
-
   tags = {
     Name = "allow_ssh"
   }
@@ -137,17 +136,23 @@ resource "aws_security_group" "nfs" {
     from_port        = 2049
     to_port          = 2049
     protocol         = "tcp"
-    cidr_blocks      = ["10.0.0.0/8","172.16.0.0/12","192.168.0.0/16"]
+    cidr_blocks      = ["0.0.0.0/0"]
   }
+  ingress {
+    description      = "RPC"
+    from_port        = 111
+    to_port          = 111
+    protocol         = "tcp"
+    cidr_blocks      = ["0.0.0.0/0"]
+  }  
   egress {
     from_port        = 0
     to_port          = 0
     protocol         = "-1"
     cidr_blocks      = ["0.0.0.0/0"]
   }
-
   tags = {
-    Name = "NFS-sg"
+    Name = "NFS-RPC-sg"
   }
 }
 
@@ -196,7 +201,6 @@ resource "aws_security_group" "master_node_sg" {
     protocol         = "-1"
     cidr_blocks      = ["0.0.0.0/0"]
   }
-
   tags = {
     Name = "K8_Master_SG"
   }
@@ -226,7 +230,6 @@ resource "aws_security_group" "worker_node_sg" {
     protocol         = "-1"
     cidr_blocks      = ["0.0.0.0/0"]
   }
-
   tags = {
     Name = "K8_Worker_SG"
   }
@@ -242,7 +245,6 @@ resource "aws_security_group" "testport" {
     protocol         = "tcp"
     cidr_blocks      = ["0.0.0.0/0"]
   }
-
   egress {
     from_port        = 0
     to_port          = 0
@@ -301,6 +303,11 @@ resource "aws_key_pair" "autokey" {
 output "master_public_ip" {
   description = "Public IP address of Master Node"
   value       = aws_instance.master_ec2.public_ip
+}
+
+output "master_public_dns" {
+  description = "Public DNS of Master Node"
+  value       = aws_instance.master_ec2.public_dns
 }
 
 output "woker1_private_ip" {

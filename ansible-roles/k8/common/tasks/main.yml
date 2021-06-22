@@ -1,0 +1,75 @@
+---
+# tasks file for common
+- name: waiting to connect...
+  wait_for_connection:
+    delay: 3
+    timeout: 300
+
+- name: Remove swapfile from /etc/fstab
+  mount:
+    name: "{{ item }}"
+    fstype: swap
+    state: absent
+  with_items:
+    - swap
+    - none
+
+- name: Disable swap
+  command: swapoff -a
+
+- name: "installing docker"
+  package:
+    name: docker
+    state: present
+
+- name: "starting docker"
+  service:
+    name: "docker"
+    state: started
+    enabled: yes  
+
+- name: "setting up yum for kubernetes"
+  copy:
+    dest: /etc/yum.repos.d/kubernetes.repo
+    src: files/kubernetes.repo
+
+- name: "installing kubelet and kubectl"
+  yum:
+    disable_excludes: kubernetes
+    name: "{{ item }}"
+    state: present
+  loop:
+    - kubelet
+    - kubectl
+    - kubeadm
+
+- name: "changing docker configurations"
+  copy:
+    src: "files/daemon.json"
+    dest: "/etc/docker/daemon.json"
+  register: daemon
+
+- name: "enforcing changes to docker"
+  service:
+    name: docker
+    state: restarted
+  when: daemon.changed
+
+- name: "enabling kubelet"
+  service:
+    name: kubelet
+    state: started
+    enabled: yes
+
+- name: "installing iproute-tc"
+  package:
+    name: iproute-tc
+    state: present
+
+- name: "copying k8s.conf"
+  copy:
+    src: files/k8s.conf
+    dest: /etc/sysctl.d/k8s.conf
+
+- name: "running command: sysctl --system"
+  command: sysctl --system

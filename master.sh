@@ -1,4 +1,6 @@
-echo '1' > /proc/sys/net/bridge/bridge-nf-call-iptables
+#Bash script for testing before using ansible(to be deleted)
+
+sudo bash -c "echo '1' > /proc/sys/net/bridge/bridge-nf-call-iptables"
 
 curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
 
@@ -21,7 +23,7 @@ sudo sed -i 's/^SELINUX=enforcing$/SELINUX=permissive/' /etc/selinux/config
 sudo yum install -y kubelet kubeadm kubectl --disableexcludes=kubernetes
 
 
-sudo yum install docker -y
+sudo yum install docker iproute-tc -y
 
 cat <<EOF | sudo tee /etc/docker/daemon.json
 {
@@ -43,4 +45,4 @@ mkdir -p $HOME/.kube
 sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
 sudo chown $(id -u):$(id -g) $HOME/.kube/config
 
-kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
+kubectl apply -f "https://cloud.weave.works/k8s/net?k8s-version=$(kubectl version | base64 | tr -d '\n')"

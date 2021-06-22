@@ -1,0 +1,100 @@
+terraform {
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 3.0"
+    }
+  }
+}
+
+# Configure the AWS Provider
+provider "aws" {
+  region = "eu-central-1"
+  profile = "default"
+  shared_credentials_file = "$HOME/.aws/credentials"
+}
+
+resource "aws_security_group" "allow_all" {
+  name        = "allow_all"
+  description = "Allow ALL inbound traffic"
+  ingress {
+    from_port        = 0
+    to_port          = 0
+    protocol         = "-1"
+    cidr_blocks      = ["0.0.0.0/0"]
+  }
+  egress {
+    from_port        = 0
+    to_port          = 0
+    protocol         = "-1"
+    cidr_blocks      = ["0.0.0.0/0"]
+  }
+  tags = {
+    Name = "allow_all"
+  }
+}
+
+
+resource "aws_instance" "master_ec2" {
+
+  #vpc_security_group_ids = [aws_security_group.allow_all]
+  #associate_public_ip_address = true
+  ami = "ami-0bad4a5e987bdebde"
+  instance_type = "t3.small"
+  key_name = "autokey"
+  security_groups = ["allow_all"]
+  tags = {
+    "Name" = "Master_Node"
+  }
+}
+
+resource "aws_instance" "worker_ec2" {
+
+  #vpc_security_group_ids = [aws_security_group.allow_all]
+  ami = "ami-0bad4a5e987bdebde"
+  instance_type = "t3.small"
+  count = 2
+  key_name = "autokey"
+  security_groups = ["allow_all"]
+  tags = {
+    "Name" = "Worker_Node"
+  }
+}
+
+resource "aws_instance" "nfs-server" { 
+  #vpc_security_group_ids = [aws_security_group.allow_all]
+  ami = "ami-0bad4a5e987bdebde"
+  instance_type = "t2.micro"
+  key_name = "autokey"
+  security_groups = ["allow_all"]
+  tags = {
+    "Name" = "NFS-server"
+  }
+}
+
+resource "aws_key_pair" "autokey" {
+  key_name   = "autokey"
+  public_key = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDKyziClfNHD7mlSxcrAb4WjOftS1kw54VaDkLttsLM2zXORCUUEFKC8nmM5KE3hNILnbfRdqL5Cvd4DK5yjQlhRHSiWN6m2jxMootUnM1RKCigYv0t7FiHo+AGe85RuCPmvVd85g+aszzbeIZuvP6Lm+imCh6EfDFC8Xnjsni20B8ZAVPMANCe0xcW+IjR4D1/rellEyyhD49fnJws6BYXAEoZuZeRaMqVsETCKyJisYWTEziJQeWGn5LMtl7ZLE0+OomxE2UFwx95luqIXUkT8Z1OZfKxtUn/N+uUrwTJQgkPjq8FvV9xeutIgoqA2EEUvqVKdkrfGo4mvnT63VspDQ8qD/Hx3khq8ggxz5gG19UH1WGhnzGCghEDJVyYlEgeI9NF7Ct1epxKBq4v7fvpBkYREe0AfrqTrV7KH/7N+Pxt4vRzNd6TVvNJwoGvGMYnKOOd18VTxsHaHGyPCX8G13DOwUwvbcWLdO8GzT5pMgRDFwBeQtgjbb+AY8SdDWU= user@DESKTOP-4T3B48Q"
+}
+
+
+
+output "master_public_ip" {
+  description = "Public IP address of Master Node"
+  value       = aws_instance.master_ec2.public_ip
+}
+
+output "woker1_public_ip" {
+  description = "public IP address of Worker Node1"
+  value       = aws_instance.worker_ec2[0].public_ip
+}
+
+output "woker2_public_ip" {
+  description = "public IP address of Worker Node2"
+  value       = aws_instance.worker_ec2[1].public_ip
+}
+
+output "nfs-server_public_ip" {
+  description = "public IP address of Worker Node2"
+  value       = aws_instance.nfs-server.public_ip
+}

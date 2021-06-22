@@ -1,0 +1,41 @@
+- name: run common playbook on k8 nodes
+  hosts: all
+  gather_facts: False
+  remote_user: ec2-user
+  become: yes
+  become_user: root
+  become_method: sudo
+  roles: 
+    - common
+
+- name: run master playbook on k8 master
+  hosts: master
+  gather_facts: False
+  remote_user: ec2-user
+  become: yes
+  become_user: root
+  become_method: sudo
+  roles: 
+    - master
+
+- name: run worker playbook on k8 worker
+  hosts: workers
+  gather_facts: False
+  remote_user: ec2-user
+  become: yes
+  become_user: root
+  become_method: sudo
+  vars:
+    - token_cmd: "{{ hostvars[groups['master'][0]]['token'] }}"
+  roles:
+    - worker
+
+- name: run playbook on nfs-server
+  hosts: nfs-server
+  gather_facts: False
+  remote_user: ec2-user
+  become: yes
+  become_user: root
+  become_method: sudo
+  roles:
+    - nfs

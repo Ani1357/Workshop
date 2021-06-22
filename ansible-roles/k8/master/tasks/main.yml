@@ -1,0 +1,55 @@
+---
+# tasks file for master
+
+- name: "installing helm"
+  raw: 'curl --silent --location https://get.helm.sh/helm-v3.6.0-linux-amd64.tar.gz | tar xz && mv linux-amd64/helm /usr/local/bin && rm -rf linux-amd64'
+
+- name: "check if kubeconfig file exists"
+  stat:
+    path: /home/ec2-user/.kube/config
+  register: stat_result
+
+
+- name: "initiating kube cluster"
+  command: kubeadm init --pod-network-cidr "{{ network_cidr }}" 
+  when: not stat_result.stat.exists
+
+- name: "dropping cache"
+  command: "echo 3 > /proc/sys/vm/drop_caches"
+
+- name: "running the command for applying overlay"
+  shell:
+    cmd: "{{ network_cmd }}"
+  environment:
+    - KUBECONFIG: /etc/kubernetes/admin.conf
+  when: not stat_result.stat.exists
+
+- name: "creating folder /home/ec2-user/.kube"
+  file:
+    state: directory
+    path: /home/ec2-user/.kube/
+    owner: ec2-user
+    group: ec2-user
+  when: not stat_result.stat.exists
+
+- name: "copying config file"
+  command: cp -i /etc/kubernetes/admin.conf /home/ec2-user/.kube/config
+  when: not stat_result.stat.exists
+
+- name: "changing owner of config file"
+  file:
+    state: file
+    path: /home/ec2-user/.kube/config
+    owner: ec2-user
+    group: ec2-user
+  when: not stat_result.stat.exists
+
+- name: "creating token" 
+  command: kubeadm token create --print-join-command
+  register: token_print
+
+
+- name: "collecting token"
+  set_fact:
+    cacheable: yes
+    token: "{{ token_print.stdout }}"

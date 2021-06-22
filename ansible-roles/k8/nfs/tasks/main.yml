@@ -1,0 +1,20 @@
+---
+# tasks file for nfs
+- name: Create directory for nfs share
+  file:
+    path: /data
+    state: directory
+
+- name: Configure nfs share
+  lineinfile:
+    path: /etc/exports
+    line: /data    *(rw,no_root_squash)
+
+- name: "enabling nfs-server"
+  service:
+    name: nfs-server
+    state: started
+    enabled: yes
+
+- name: Refresh NFS exports table
+  command: exportfs -r

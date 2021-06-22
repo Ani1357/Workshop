@@ -1,0 +1,15 @@
+[master]
+35.157.219.166
+
+[workers]
+10.0.2.79 
+10.0.2.78
+
+[nfs-server]
+10.0.2.142
+
+[workers:vars]
+ansible_ssh_common_args='-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ProxyCommand="ssh -W %h:%p -q bastion"'
+
+[nfs-server:vars]
+ansible_ssh_common_args='-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ProxyCommand="ssh -W %h:%p -q bastion"'
