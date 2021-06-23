@@ -212,9 +212,9 @@ resource "aws_security_group" "worker_node_sg" {
   vpc_id = aws_vpc.devvpc.id
   ingress {
     description      = "kubelet API"
-    from_port        = 10250
-    to_port          = 10250
-    protocol         = "tcp"
+    from_port        = 0
+    to_port          = 0
+    protocol         = "-1"
     cidr_blocks      = ["0.0.0.0/0"]
   }
   ingress {
@@ -257,6 +257,10 @@ resource "aws_security_group" "testport" {
   }
 }
 
+
+
+
+
 resource "aws_instance" "master_ec2" {
   subnet_id = aws_subnet.devsubnet_public.id
   vpc_security_group_ids = [aws_security_group.allow_ssh.id, aws_security_group.nfs.id, aws_security_group.master_node_sg.id, aws_security_group.testport.id]
@@ -272,11 +276,14 @@ resource "aws_instance" "master_ec2" {
 
 resource "aws_instance" "worker_ec2" {
   subnet_id = aws_subnet.devsubnet_private.id
-  vpc_security_group_ids = [aws_security_group.allow_ssh.id, aws_security_group.nfs.id, aws_security_group.worker_node_sg.id, aws_security_group.testport.id]
+  vpc_security_group_ids = [aws_security_group.worker_node_sg.id]
   ami = "ami-0bad4a5e987bdebde"
-  instance_type = "t3.small"
+  instance_type = "m5.xlarge"
   count = 2
   key_name = "autokey"
+  root_block_device {
+    volume_size = 20
+  }
   #security_groups = ["allow_ssh","nfs","worker_node_sg","testport"]
   tags = {
     "Name" = "Worker_Node"
@@ -338,11 +345,14 @@ resource "local_file" "ansible_inventory" {
   
 }
 
+#ssh -o ProxyCommand="ssh -W %h:%p -q bastion"  ec2-user@privateip
+
 resource "local_file" "create_ssh_jump_config" {
   content = templatefile("config.tmpl", {
       master_dns = aws_instance.master_ec2.public_dns,
   })
   filename = format("%s/%s", abspath(path.root), "ansible-roles/k8/common/files/config")
+  file_permission = 644
 }
 
 resource "null_resource" "copy_ssh_config" {

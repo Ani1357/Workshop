@@ -4,6 +4,7 @@
   file:
     path: /data
     state: directory
+    mode: 0777
 
 - name: Configure nfs share
   lineinfile:
