@@ -1,0 +1,24 @@
+- name: run common playbook on k8 nodes
+  hosts: master
+  gather_facts: False
+  remote_user: ec2-user
+  become: yes
+  become_user: root
+  become_method: sudo
+  
+  tasks:
+  - name: copy jenkins files
+    copy:
+      src: "{{ role_dir }}/jenkins/"
+      dest: /home/ec2-user/
+      owner: ec2-user
+      group: ec2-user
+      mode: '0644'
+
+  - name: deploy jenkins 
+    become_user: ec2-user 
+    command: "{{item}}"
+    with_items:
+      - kubectl create namespace jenkins
+      - kubectl apply -f jenkins-deployment.yaml -n jenkins
+      - kubectl apply -f jenkins-service.yaml -n jenkins
