@@ -19,3 +19,5 @@
 3- Configure AWS credentials (The TF script uses $HOME/.aws/credentials to retrive credentials)
 
 4- Generate a ssh keypair (will use the public key inside the TF script)
+
+* you can run the setup.sh script to install ansible and aws-cli

@@ -1,0 +1,11 @@
+Host *
+    Port 22
+    StrictHostKeyChecking no
+    UserKnownHostsFile /dev/null
+    ServerAliveInterval 60
+    ServerAliveCountMax 30
+
+Host bastion
+    HostName ${master_dns}
+    User ec2-user
+    IdentityFile ~/.ssh/id_rsa

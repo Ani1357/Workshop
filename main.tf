@@ -240,8 +240,8 @@ resource "aws_security_group" "testport" {
   description = "Testing"
   vpc_id = aws_vpc.devvpc.id
   ingress {
-    from_port        = 8080
-    to_port          = 8080
+    from_port        = 30080
+    to_port          = 30080
     protocol         = "tcp"
     cidr_blocks      = ["0.0.0.0/0"]
   }
@@ -266,7 +266,7 @@ resource "aws_instance" "master_ec2" {
   vpc_security_group_ids = [aws_security_group.allow_ssh.id, aws_security_group.nfs.id, aws_security_group.master_node_sg.id, aws_security_group.testport.id]
   #associate_public_ip_address = true
   ami = "ami-0bad4a5e987bdebde"
-  instance_type = "t3.small"
+  instance_type = "m5.large"
   key_name = "autokey"
   #security_groups = ["allow_ssh","nfs","master_node_sg","testport"]
   tags = {
@@ -333,8 +333,9 @@ output "nfs-server_private_ip" {
 }
 
 
+
 resource "local_file" "ansible_inventory" {
-  content = templatefile("inventory.tmpl", {
+  content = templatefile("${path.module}/templates/inventory.tmpl", {
       nfs_server-ip = aws_instance.nfs-server.private_ip,
       master-ip     = aws_instance.master_ec2.public_ip,
       worker1-ip    = aws_instance.worker_ec2[0].private_ip,
@@ -342,16 +343,23 @@ resource "local_file" "ansible_inventory" {
   })
   file_permission = 644
   filename = format("%s/%s", abspath(path.root), "inventory.yaml")
-  
 }
 
 #ssh -o ProxyCommand="ssh -W %h:%p -q bastion"  ec2-user@privateip
 
 resource "local_file" "create_ssh_jump_config" {
-  content = templatefile("config.tmpl", {
+  content = templatefile("${path.module}/templates/config.tmpl", {
       master_dns = aws_instance.master_ec2.public_dns,
   })
   filename = format("%s/%s", abspath(path.root), "ansible-roles/k8/common/files/config")
+  file_permission = 644
+}
+
+resource "local_file" "create_jenkinc_pv_file" {
+  content = templatefile("${path.module}/templates/jenkins-volume.tmpl", {
+      nfs-server = aws_instance.nfs-server.private_ip,
+  })
+  filename = format("%s/%s", abspath(path.root), "ansible-roles/k8/master/files/jenkins-volume.yaml")
   file_permission = 644
 }
 

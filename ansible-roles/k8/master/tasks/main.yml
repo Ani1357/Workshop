@@ -11,7 +11,7 @@
 
 
 - name: "initiating kube cluster"
-  command: kubeadm init --pod-network-cidr "{{ network_cidr }}" 
+  command: kubeadm init --pod-network-cidr "{{ network_cidr }}"
   when: not stat_result.stat.exists
 
 - name: "dropping cache"
@@ -48,8 +48,30 @@
   command: kubeadm token create --print-join-command
   register: token_print
 
-
 - name: "collecting token"
   set_fact:
     cacheable: yes
     token: "{{ token_print.stdout }}"
+
+- name: copy jenkins files
+  copy:
+    src: "jenkins/"
+    dest: "/home/ec2-user/"
+    owner: ec2-user
+    group: ec2-user
+    mode: '0644'
+
+
+- name: Sleep for 300 seconds and continue with play
+  wait_for:
+    timeout: 60
+
+- name: deploy jenkins 
+  become_user: ec2-user 
+  command: "{{item}}"
+  with_items:
+    - kubectl create namespace jenkins
+    - kubectl apply -f jenkins-deployment.yaml -n jenkins
+    - kubectl apply -f jenkins-service.yaml -n jenkins
+
+    
